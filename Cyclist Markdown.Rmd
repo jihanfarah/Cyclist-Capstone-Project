@@ -1,0 +1,353 @@
+---
+title: "Data Analyst Project"
+author: "Jihan Farah S"
+output: html_document
+date: "2022-10-23"
+theme: jekyll-theme-slate
+---
+
+# Cyclistic Bike-Sharing Analysis
+
+## Overview
+
+This project is part of Google Data Analytics Course on Coursera.
+
+In 2016, Cyclistic launched a successful bike-sharing offering. Since then, the program has grown to a fleet of 5,824 bikes that are geo-tracked and locked into a network of 692 stations across Chicago. Bikes can be accessed from one station and returned to another at any time in the system.
+
+To date, Cyclistic's marketing strategy has relied on efforts to build general awareness and attract a broad consumer segment. One approach that helps make this happen is price flexibility: one-way tickets, full-day passes, and annual memberships. Customers who purchase a one-way ticket or a full day ticket are referred to as casual riders. Customers who purchase an annual membership are Cyclistic members. Therefore, the marketing analyst team needs to better understand the differences between annual members and regular riders in this month.
+
+## Dataset Preview
+
+For this project, we will use the data for September 2022 [here](https://divvy-tripdata.s3.amazonaws.com/index.html).
+
+This dataset is in the form of CSV (comma-separated value) with 701,339 rows of data. The field in data included:
+
+1.  ride_id
+2.  rideable_type
+3.  started_at
+4.  ended_at
+5.  start_station_name
+6.  start_station_id
+7.  end_station_name
+8.  end_station_id
+9.  start_lat
+10. start_lng
+11. end_lat
+12. end_lng
+13. member_casual
+
+## Steps
+
+1.  Import data.
+2.  Clean and add data to prepare for analysis.
+3.  Perform a descriptive analysis.
+
+## Import Data
+
+```{r message=FALSE}
+library("readr")
+library("dplyr")
+
+#Importing data
+divvy_202209 <- read_csv("~/divvy-tripdata/202209-divvy-publictripdata.csv")
+divvy_202208 <- read_csv("~/divvy-tripdata/202208-divvy-tripdata.csv")
+divvy_202207 <- read_csv("~/divvy-tripdata/202207-divvy-tripdata.csv")
+divvy_202206 <- read_csv("~/divvy-tripdata/202206-divvy-tripdata.csv")
+divvy_202205 <- read_csv("~/divvy-tripdata/202205-divvy-tripdata.csv")
+divvy_202204 <- read_csv("~/divvy-tripdata/202204-divvy-tripdata.csv")
+divvy_202203 <- read_csv("~/divvy-tripdata/202203-divvy-tripdata.csv")
+divvy_202202 <- read_csv("~/divvy-tripdata/202202-divvy-tripdata.csv")
+divvy_202201 <- read_csv("~/divvy-tripdata/202201-divvy-tripdata.csv")
+divvy_202112 <- read_csv("~/divvy-tripdata/202112-divvy-tripdata.csv")
+divvy_202111 <- read_csv("~/divvy-tripdata/202111-divvy-tripdata.csv")
+divvy_202110 <- read_csv("~/divvy-tripdata/202110-divvy-tripdata.csv")
+
+
+#Checking data dimension
+dim(divvy_202209)
+dim(divvy_202208)
+dim(divvy_202207)
+dim(divvy_202206)
+dim(divvy_202205)
+dim(divvy_202204)
+dim(divvy_202203)
+dim(divvy_202202)
+dim(divvy_202201)
+dim(divvy_202112)
+dim(divvy_202111)
+dim(divvy_202110)
+
+#Checking columns names
+colnames(divvy_202209)
+colnames(divvy_202208)
+colnames(divvy_202207)
+colnames(divvy_202206)
+colnames(divvy_202205)
+colnames(divvy_202204)
+colnames(divvy_202203)
+colnames(divvy_202202)
+colnames(divvy_202201)
+colnames(divvy_202112)
+colnames(divvy_202111)
+colnames(divvy_202110)
+```
+
+## Data Merging
+
+Before we start to clean the data, we need to merge all the data into one dataset to make it easier.
+
+```{r message=FALSE}
+#Merging all data
+all_data <- bind_rows(divvy_202209, divvy_202208, divvy_202207, divvy_202206, divvy_202205, divvy_202204, divvy_202203, divvy_202202, divvy_202201, divvy_202112, divvy_202111, divvy_202110)
+
+#Checking data dimension
+dim(all_data)
+```
+
+After we merge all datasets, we get that the data has 5828235 rows and 13 columns.
+
+## Data Cleaning and Preparation
+
+We will analyze the behavior of member and casual users, so we only need ride_id, rideable_type, started_at, ended_at, and member_casual.
+
+```{r message=FALSE}
+#Selecting columns
+all_data <- all_data %>% 
+  select(c(ride_id, rideable_type, started_at,ended_at,member_casual))
+
+head(all_data)
+```
+
+We will analyze the ride length of users, so we will make new column that shows the length of ride in minutes. We will count the difference between start and end time of ride.
+
+```{r message=FALSE}
+#Make new column for ride length
+all_data$ride_length <- difftime(all_data$ended_at, all_data$started_at)
+all_data$ride_length <- as.double(all_data$ride_length)
+```
+
+Then, we remove the row with negative values of ride length.
+
+```{r message=FALSE}
+#Remove the row with negative value of ride length
+all_data_v2 <- all_data[!all_data$ride_length<0,]
+```
+
+We will analyze bike usage for each day, making new columns for the started day, ended day, and each day in a week.
+
+```{r message=FALSE}
+#Make new column for bike usage in start_date, end_date
+all_data_v2$started_date <- as.Date(all_data_v2$started_at)
+all_data_v2$ended_date <- as.Date(all_data_v2$ended_at)
+all_data_v2$Day_of_week <- format(as.Date(all_data_v2$started_date), "%A")
+all_data_v2$Month <- format(as.Date(all_data_v2$started_date), "%B")
+```
+
+We will check data summary of ride length to see any outliers.
+
+```{r message=FALSE}
+#Summary of ride length
+summary(all_data_v2$ride_length)
+```
+
+We get that the minimum ride length is 0 sec, the 1st quantile is 356 secs, the median is 629 secs, the 3rd quantile is 1131 secs, the maximum ride length is 2442301 secs, and the mean is 1176 secs. From the summary, we get the possibilities that the usage of bikes can be more than one day. It can affect our analysis if we want to check the average ride length for each day.
+
+Furthermore, we need to filter the data to analyze the ride that starts and ends on the same day.
+
+```{r message=FALSE}
+#Filtering the data
+all_data_v3 <- all_data_v2 %>% 
+  filter(started_date == ended_date)
+```
+
+We check the summary from the new dataset.
+
+```{r message=FALSE}
+#Summary of ride length in new dataset
+summary(all_data_v3$ride_length)
+```
+
+## Analyzing Data
+
+We will compare the mean, minimum, maximum, and median of member and casual users in ride length for the same-day trip.
+
+```{r message =FALSE}
+#Compare member and casual user in ride length
+mean_data <- aggregate(all_data_v3$ride_length ~ all_data_v3$member_casual, FUN = mean)
+min_data <- aggregate(all_data_v3$ride_length ~ all_data_v3$member_casual, FUN = min)
+max_data <- aggregate(all_data_v3$ride_length ~ all_data_v3$member_casual, FUN = max)
+median_data <- aggregate(all_data_v3$ride_length ~ all_data_v3$member_casual, FUN = median)
+
+mean_data
+min_data
+max_data
+median_data
+
+```
+
+From the data, we can see that the mean ride lengths for the same-day trip are 1285.6031 secs for casual users and 735.6604 for member users.
+
+The minimum ride length for both users is 0 seconds and the maximum ride lengths for casual and member users are 84509 secs and 69947 secs, consecutively.
+
+The median ride length for casual and member users is 801 secs and 532 secs.
+
+Then, we compare the total of members and casual users based on rideable type.
+
+```{r message=FALSE}
+#Compare member and casual user with rideable type
+library("janitor")
+all_data_v3 %>% 
+  tabyl(rideable_type,member_casual) %>% 
+  adorn_totals()
+
+```
+
+We can see that there are no member users who use docked bike. The number of member users who use classic bike and electric bike are larger than casual users. We also can see the total of member users is larger than casual users.
+
+Then, we compare the total of member and casual user based on ride length each day and each month.
+
+```{r message=FALSE}
+#Compare member and casual user in ride length each day
+aggregate(all_data_v3$ride_length ~ all_data_v3$member_casual + all_data_v3$Day_of_week, FUN =mean)
+
+#Compare member and casual user in ride length each month
+aggregate(all_data_v3$ride_length ~ all_data_v3$member_casual + all_data_v3$Month, FUN =mean)
+```
+
+The days and months in the output are not in order, so we need to rearrange it first.
+
+```{r message=FALSE}
+#Ordering day
+all_data_v3$Day_of_week <- ordered(all_data_v3$Day_of_week, levels=c("Monday", "Tuesday", "Wednesday", "Thursday","Friday","Saturday","Sunday"))
+
+#Ordering month
+all_data_v3$Month <- ordered(all_data_v3$Month, levels=c("January", "February", "March", "April","May","June","July", "August", "September", "October", "November", "December"))
+```
+
+Then we can check the data with new order.
+
+```{r message=FALSE}
+#Compare member and casual user in ride length each day
+aggregate(all_data_v3$ride_length ~ all_data_v3$member_casual + all_data_v3$Day_of_week, FUN =mean)
+
+#Compare member and casual user in ride length each month
+aggregate(all_data_v3$ride_length ~ all_data_v3$member_casual + all_data_v3$Month, FUN =mean)
+```
+
+For make the data easier to see, we will make the visualization.
+
+### Daily usage
+
+```{r message=FALSE}
+library("ggplot2")
+library("lubridate")
+
+#Analyze number of rides on weekday by user type 
+all_data_v3 %>%
+  mutate(weekday = lubridate::wday(started_date, label = TRUE)) %>%  #creates weekday field using wday()
+  group_by(member_casual, weekday, rideable_type) %>%  #groups by usertype and weekday'
+  summarise(number_of_rides = n(), #calculates the number of rides and average duration
+            average_duration = mean(ride_length)) %>% # calculates the average duration
+  arrange(member_casual, weekday) %>% # sorts
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge") + 
+  labs(title = "Number of Rides on Weekday", subtitle = "Based on same-day trip in October 2021 - September 2022", x="Day", y="Number of Rides", fill="User type") +
+  theme(plot.title =element_text(hjust = 0.5), plot.subtitle =element_text(hjust = 0.5) ) 
+```
+
+From the graphic, we can see that the number of rides for member users is higher than casual users.
+
+The highest number of rides by member users is on Tuesday, and the highest number of rides by casual users is on Saturday.
+
+```{r message=FALSE}
+#Analyze number of rides on weekday by user type and bike type
+all_data_v3 %>%
+  mutate(weekday = lubridate::wday(started_date, label = TRUE)) %>%  #creates weekday field using wday()
+  group_by(member_casual, weekday, rideable_type) %>%  #groups by usertype and weekday'
+  summarise(number_of_rides = n(), #calculates the number of rides and average duration
+            average_duration = mean(ride_length)) %>% # calculates the average duration
+  arrange(member_casual, weekday) %>% # sorts
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge") + 
+  labs(title = "Number of Rides on Weekday", subtitle = "Based on same-day trip in October 2021 - September 2022", x="Day", y="Number of Rides", fill="User type") +
+  theme(plot.title =element_text(hjust = 0.5),plot.subtitle = element_text(hjust = 0.5)) +
+  facet_wrap("rideable_type",ncol=2,nrow =2)
+
+```
+
+From the graph, we can see the highest number of rides by casual users and member users with the classic bike are on Tuesday and Saturday, consecutively.
+
+The highest number of rides by casual users and member users with electric bikes are on Saturday and Wednesday, consecutively.
+
+The highest number of rides by casual users with the docked bike is on Saturday.
+
+```{r message=FALSE}
+#Analyze average duration on weekday by user type 
+all_data_v3 %>%
+  mutate(weekday = lubridate::wday(started_date, label = TRUE)) %>%  #creates weekday field using wday()
+  group_by(member_casual, weekday) %>%  #groups by usertype and weekday'
+  summarise(number_of_rides = n(), #calculates the number of rides and average duration
+            average_duration = mean(ride_length)) %>% # calculates the average duration
+  arrange(member_casual, weekday) %>% # sorts
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge") + 
+  labs(title = "Average Duration on Weekday",subtitle = "Based on same-day trip in October 2021 - September 2022", x="Day", y="Average Duration (in secs)", fill="User type") +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+```
+
+We can see from the graphic that casual users have a longer average trip duration per day than member users, with the highest being on Saturdays. The highest average trip duration for member users is on Saturday and Sunday.
+
+```{r message=FALSE}
+#Analyze average duration on weekday by user type 
+all_data_v3 %>%
+  mutate(weekday = lubridate::wday(started_date, label = TRUE)) %>%  #creates weekday field using wday()
+  group_by(member_casual, weekday, rideable_type) %>%  #groups by usertype and weekday'
+  summarise(number_of_rides = n(), #calculates the number of rides and average duration
+            average_duration = mean(ride_length)) %>% # calculates the average duration
+  arrange(member_casual, weekday) %>% # sorts
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge") + 
+  labs(title = "Average Duration on Weekday",subtitle = "Based on same-day trip in October 2021 - September 2022", x="Day", y="Average Duration (in secs)", fill="User type") +
+  theme(plot.title =element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5)) +
+  facet_wrap("rideable_type",ncol=2,nrow =2)
+```
+
+We can see the average trip duration of the docked bike are higher than other types of bikes, with the highest being on Sunday.
+
+For the classic bike, the highest trip average duration are by casual users on Saturday and Sunday. Then, the highest trip average duration for the classic bike by member users are also on Saturday and Sunday.
+
+For the electric bike, the highest trip average duration are by casual users on Saturday and Sunday. Then, the highest trip average duration for the electric bike by member users are on Saturday and Sunday.
+
+### Monthly number rides
+
+```{r message=FALSE}
+library("ggplot2")
+library("lubridate")
+library("zoo")
+
+#Analyze number of rides on weekday by user type 
+all_data_v3 %>%
+  mutate(month_name = as.yearmon(started_date, "%m/%Y")) %>%  #creates month field using yearmon
+  group_by(member_casual, month_name, rideable_type) %>%  #groups by usertype and weekday'
+  summarise(number_of_rides = n(), #calculates the number of rides and average duration
+            average_duration = mean(ride_length)) %>% # calculates the average duration
+  arrange(member_casual, month_name) %>% # sorts
+  ggplot(aes(x = factor(month_name), y = number_of_rides, fill = member_casual)) +
+  geom_bar(position = "stack", stat="identity") + 
+  labs(title = "Number of Rides per Month", subtitle = "Based on same-day trip in October 2021 - September 2022", x="Month", y="Number of Rides", fill="User type") +
+  theme(plot.title =element_text(hjust = 0.5), plot.subtitle =element_text(hjust = 0.5) ) 
+```
+For monthly number rides, we get that the number of bicycle usage increases towards summer with the highest number in August 2022, and decreases towards winter with the lowest number in January 2021.
+
+## Conclusion and recommendation
+
+From the analysis that we did, we get that:
+
+1. The number of rides by member users is more than by casual users, with the highest number of rides by member users on the weekdays and the highest number of rides by casual users on the weekend.
+2. The average duration of the trip by casual users is more than member users, with the highest average duration for users with the docked bike.
+3. The number of rides per month is related to the season. For summer, the number of rides increases, and for winter the number of rides decreases.
+
+From the conclusions, we can make some recommendations, such as:
+1. Make special offers for member users on the weekend. Based on the data, the highest number of rides by casual users is on the weekend. With this offering, we may gain new member users.
+2. Make a seasonal members system. Based on the data, we have some months with a high number of rides and others are low. With this, we may still gain new customers, and it is more beneficial for the users too.
+3. Make special offers for member users who want to extend the membership period. It may keep them as member users and new member users interested.
